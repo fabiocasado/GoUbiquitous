@@ -20,7 +20,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -29,6 +32,7 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.content.ContextCompat;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.text.format.Time;
@@ -36,6 +40,9 @@ import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -86,17 +93,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 	private class Engine extends CanvasWatchFaceService.Engine {
 		final Handler mUpdateTimeHandler = new EngineHandler(this);
 
-		//		final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
-//			@Override
-//			public void onReceive(Context context, Intent intent) {
-//				mTime.clear(intent.getStringExtra("time-zone"));
-//				mTime.setToNow();
-//			}
-//		};
 		boolean mRegisteredTimeZoneReceiver = false;
 
 		Paint mBackgroundPaint;
 		Paint mTextPaint;
+		Paint mDateTextPaint;
+		Paint mDividerPaint;
 
 		boolean mAmbient;
 		Time mTime;
@@ -108,8 +110,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 			}
 		};
 		int mTapCount;
-
-		float mXOffset;
 		float mYOffset;
 
 		/**
@@ -117,6 +117,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 		 * disable anti-aliasing in ambient mode.
 		 */
 		boolean mLowBitAmbient;
+		SharedPreferences.OnSharedPreferenceChangeListener preferenceChangeListener;
+		private float maxTemp;
+		private float minTemp;
+		private Bitmap weatherBitmap;
 
 		@Override
 		public void onCreate(SurfaceHolder holder) {
@@ -134,23 +138,66 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 			mBackgroundPaint = new Paint();
 			mBackgroundPaint.setColor(resources.getColor(R.color.background));
 
-			mTextPaint = new Paint();
-			mTextPaint = createTextPaint(resources.getColor(R.color.digital_text));
+			mTextPaint = createTimeTextPaint();
+			mDateTextPaint = createDateTextPaint();
+
+			mDividerPaint = new Paint();
+			mDividerPaint.setColor(ContextCompat.getColor(getBaseContext(), R.color.divider));
+			mDividerPaint.setAntiAlias(true);
 
 			mTime = new Time();
+
+			preferenceChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+				@Override
+				public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+					updateWeatherInfo(sharedPreferences);
+				}
+			};
+
+			SharedPreferences sp = getSharedPreferences("weather", Context.MODE_PRIVATE);
+			sp.registerOnSharedPreferenceChangeListener(preferenceChangeListener);
+		}
+
+		private void updateWeatherInfo(SharedPreferences sharedPreferences) {
+			maxTemp = sharedPreferences.getFloat("maxTemp", maxTemp);
+			minTemp = sharedPreferences.getFloat("minTemp", minTemp);
+			int weatherId = sharedPreferences.getInt("weatherI." +
+					"" +
+					"." +
+					".D", -1);
+			int resId = Utils.getIconResourceForWeatherCondition(weatherId);
+			if (resId != -1) {
+				weatherBitmap = BitmapFactory.decodeResource(getResources(), resId);
+			} else {
+				weatherBitmap = null;
+			}
 		}
 
 		@Override
 		public void onDestroy() {
+			SharedPreferences sp = getSharedPreferences("weather", Context.MODE_PRIVATE);
+			sp.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener);
+
 			mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
 			super.onDestroy();
 		}
 
-		private Paint createTextPaint(int textColor) {
+		private Paint createTimeTextPaint() {
 			Paint paint = new Paint();
-			paint.setColor(textColor);
+			paint.setColor(ContextCompat.getColor(getBaseContext(), R.color.digital_text));
 			paint.setTypeface(NORMAL_TYPEFACE);
 			paint.setAntiAlias(true);
+			paint.setTextAlign(Paint.Align.CENTER);
+			return paint;
+		}
+
+		private Paint createDateTextPaint() {
+			Paint paint = new Paint();
+			paint.setColor(ContextCompat.getColor(getBaseContext(), R.color.date_text));
+			paint.setTypeface(NORMAL_TYPEFACE);
+			paint.setAntiAlias(true);
+			paint.setTextAlign(Paint.Align.CENTER);
+			paint.setTextSize(getResources().getDimension(R.dimen.digital_date_text_size));
 			return paint;
 		}
 
@@ -197,8 +244,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 			// Load resources that have alternate values for round watches.
 			Resources resources = SunshineWatchFace.this.getResources();
 			boolean isRound = insets.isRound();
-			mXOffset = resources.getDimension(isRound
-					? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
 			float textSize = resources.getDimension(isRound
 					? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
 
@@ -266,12 +311,30 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 				canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
 			}
 
-			// Draw H:MM in ambient mode or H:MM:SS in interactive mode.
+			int canvasCenterX = canvas.getWidth() / 2;
+			int canvasCenterY = canvas.getHeight() / 2 + 50;
+
+			// Draw line in middle
+			canvas.drawLine(canvasCenterX - 30, canvasCenterY, canvasCenterX + 30, canvasCenterY, mDividerPaint);
+
+			// Draw current date above line
 			mTime.setToNow();
-			String text = mAmbient
-					? String.format("%d:%02d", mTime.hour, mTime.minute)
-					: String.format("%d:%02d:%02d", mTime.hour, mTime.minute, mTime.second);
-			canvas.drawText(text, mXOffset, mYOffset, mTextPaint);
+			Date date = new Date(mTime.toMillis(false));
+			SimpleDateFormat dateFormat = new SimpleDateFormat("E, MMM dd yyyy", Locale.US);
+			String dateText = dateFormat.format(date).toUpperCase();
+			canvas.drawText(dateText, canvasCenterX, canvasCenterY - 30, mDateTextPaint);
+
+
+			// Draw current time above date
+			SimpleDateFormat timeFormat = mAmbient ? new SimpleDateFormat("hh:mm", Locale.US) : new SimpleDateFormat("hh:mm:ss", Locale.US);
+			String text = timeFormat.format(date);
+			float dateHeight = Math.abs(mDateTextPaint.ascent()) + Math.abs(mDateTextPaint.descent());
+			canvas.drawText(text, canvasCenterX, canvasCenterY - 20 - dateHeight - 20, mTextPaint);
+
+			// Draw weather icon below
+			if (weatherBitmap != null) {
+				canvas.drawBitmap(weatherBitmap, canvasCenterX, canvasCenterY + 30, null);
+			}
 		}
 
 		/**
