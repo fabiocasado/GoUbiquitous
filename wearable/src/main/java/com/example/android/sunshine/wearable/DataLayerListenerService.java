@@ -19,8 +19,6 @@ import java.util.concurrent.TimeUnit;
  * Created by fcasado on 4/28/16.
  */
 public class DataLayerListenerService extends WearableListenerService {
-
-	private static final String TAG = "DataLayerSample";
 	private static final String WEATHER_PATH = "/weather";
 
 	@Override
@@ -43,11 +41,11 @@ public class DataLayerListenerService extends WearableListenerService {
 			if (item.getUri().getPath().compareTo(WEATHER_PATH) == 0) {
 				DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
 
-				SharedPreferences sp = getBaseContext().getSharedPreferences("weather", Context.MODE_PRIVATE);
+				SharedPreferences sp = getBaseContext().getSharedPreferences(Constants.WEATHER_PREF, Context.MODE_PRIVATE);
 				SharedPreferences.Editor editor = sp.edit();
-				editor.putInt("weatherID", dataMap.getInt("weatherID"));
-				editor.putFloat("maxTemp", dataMap.getFloat("maxTemp"));
-				editor.putFloat("minTemp", dataMap.getFloat("minTemp"));
+				editor.putInt(Constants.PREF_KEY_WEATHER_ID, dataMap.getInt(Constants.PREF_KEY_WEATHER_ID));
+				editor.putFloat(Constants.PREF_KEY_MAX_TEMP, dataMap.getFloat(Constants.PREF_KEY_MAX_TEMP));
+				editor.putFloat(Constants.PREF_KEY_MIN_TEMP, dataMap.getFloat(Constants.PREF_KEY_MIN_TEMP));
 				editor.commit();
 			}
 		}

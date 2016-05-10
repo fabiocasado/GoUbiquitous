@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="20dp">
+
+        <TextView
+            android:id="@+id/time_textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/digital_text"
+            android:textSize="@dimen/digital_text_size"
+            tools:text="15:50"/>
+
+        <TextView
+            android:id="@+id/date_textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:lines="1"
+            android:textColor="@color/date_text"
+            android:textSize="@dimen/digital_date_text_size"
+            tools:text="FRI, JUL 14 2015"/>
+
+        <View
+            android:layout_width="40dp"
+            android:layout_height="1dp"
+            android:layout_marginBottom="8dp"
+            android:layout_marginTop="8dp"
+            android:background="@color/divider"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/max_temp_textView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp"
+                android:textColor="@color/digital_text"
+                android:textSize="@dimen/digital_temp_size"
+                tools:text="25"/>
+
+            <ImageView
+                android:id="@+id/weather_imageView"
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_alignBottom="@id/max_temp_textView"
+                android:layout_alignTop="@id/max_temp_textView"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@id/max_temp_textView"
+                tools:src="@drawable/ic_clear"/>
+
+            <TextView
+                android:id="@+id/min_temp_textView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/max_temp_textView"
+                android:textColor="@color/date_text"
+                android:textSize="@dimen/digital_temp_size"
+                tools:text="16"/>
+
+        </RelativeLayout>
+    </LinearLayout>
+
+</RelativeLayout>
